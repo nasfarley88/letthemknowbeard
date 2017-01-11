@@ -8,10 +8,9 @@ from telepot.namedtuple import InlineKeyboardMarkup, InlineKeyboardButton
 from skybeard.beards import BeardChatHandler, ThatsNotMineException
 from skybeard.decorators import onerror
 
+from . import config
+
 logger = logging.getLogger(__name__)
-
-
-DB = "sqlite:///letthemknowbeard.db"
 
 
 def get_full_name(chat_member):
@@ -28,7 +27,7 @@ def get_full_name(chat_member):
 
 async def check_for_messages(to_user_id, chat_id):
     """Find any messages currently waiting for a user."""
-    with dataset.connect(DB) as db:
+    with dataset.connect(config.db_path) as db:
         table = db['messages']
         return table.find(to_user_id=to_user_id, chat_id=chat_id)
 
@@ -39,7 +38,7 @@ async def insert_message(to_user_id, message):
     message_text = message['text']
     from_user_name = get_full_name(message['from'])
 
-    with dataset.connect(DB) as db:
+    with dataset.connect(config.db_path) as db:
         table = db['messages']
         return table.insert(
             dict(to_user_id=to_user_id,
@@ -49,7 +48,7 @@ async def insert_message(to_user_id, message):
 
 
 def is_chat_member_recorded(msg):
-    with dataset.connect(DB) as db:
+    with dataset.connect(config.db_path) as db:
         table = db.get_table('chats', 'database_id')
         try:
             return table.find_one(**msg['from'], chat_id=msg['chat']['id'])
@@ -58,7 +57,7 @@ def is_chat_member_recorded(msg):
 
 
 async def get_chat_member(chat_id, user_id):
-    with dataset.connect(DB) as db:
+    with dataset.connect(config.db_path) as db:
         table = db.get_table('chats', 'database_id')
         x = table.find_one(chat_id=chat_id, id=user_id)
         assert x, "Failed to find entry for (chat_id, id) = ({}, {})".format(chat_id, user_id)
@@ -66,7 +65,7 @@ async def get_chat_member(chat_id, user_id):
 
 
 async def get_chat_members(chat_id):
-    with dataset.connect(DB) as db:
+    with dataset.connect(config.db_path) as db:
         table = db.get_table('chats', 'database_id')
         results_found = table.find(chat_id=chat_id)
         results_to_return = []
@@ -79,7 +78,7 @@ async def get_chat_members(chat_id):
 
 
 async def insert_chat_member(chat_id, from_user):
-    with dataset.connect(DB) as db:
+    with dataset.connect(config.db_path) as db:
         table = db.get_table('chats', 'database_id')
         # from_user['user_id'] = from_user['id']
         # del from_user['id']
@@ -92,7 +91,7 @@ def format_db_entry(entry):
 
 async def delete_message(entry):
     """Deletes message from database"""
-    with dataset.connect(DB) as db:
+    with dataset.connect(config.db_path) as db:
         table = db['messages']
         table.delete(**entry)
 
