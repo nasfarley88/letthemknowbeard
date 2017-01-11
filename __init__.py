@@ -34,7 +34,6 @@ async def check_for_messages(to_user_id, chat_id):
 
 
 async def insert_message(to_user_id, message):
-    # TODO insert full message object so that this function can do the heavy lifting
     """Find any messages currently waiting for a user."""
     chat_id = message['chat']['id']
     message_text = message['text']
@@ -49,10 +48,9 @@ async def insert_message(to_user_id, message):
                  message=message_text))
 
 
-async def is_chat_member_recorded(msg):
+def is_chat_member_recorded(msg):
     with dataset.connect(DB) as db:
         table = db.get_table('chats', 'database_id')
-        # import pdb; pdb.set_trace()
         try:
             return table.find_one(**msg['from'], chat_id=msg['chat']['id'])
         except AttributeError:
@@ -103,6 +101,8 @@ class LetThemKnowBeard(BeardChatHandler):
 
     __commands__ = [
         ("letthemknow", 'let_them_know', "TODO"),
+        (lambda x: not(is_chat_member_recorded(x)), 'record_new_chat_member',
+         None)
     ]
 
     _timeout = 300
@@ -116,13 +116,12 @@ class LetThemKnowBeard(BeardChatHandler):
         self.message_to_record = None
         self.message_to_request_user_id = None
 
-    @onerror
+    async def record_new_chat_member(self, msg):
+        self.logger.debug(
+            "I've not seen you before! Recording you for LetThemKnowBeard.")
+        await insert_chat_member(self.chat_id, msg['from'])
+
     async def on_chat_message(self, msg):
-        # Check if the user is part of the database already
-        if not await is_chat_member_recorded(msg):
-            self.logger.debug(
-                "I've not seen you before! Recording you for LetThemKnowBeard.")
-            await insert_chat_member(self.chat_id, msg['from'])
 
         # Check if anyone needs to be told a message
         pregnant_msgs = await check_for_messages(
@@ -136,18 +135,13 @@ class LetThemKnowBeard(BeardChatHandler):
 
         await super().on_chat_message(msg)
 
-    @onerror
     async def make_keyboard(self):
-        # try:
-        #     chat_admins = await self.bot.getChatAdministrators(self.chat_id)
-        # except TelegramError:
-        #     chat_admins = [await self.bot.getChatMember(self.chat_id, self.chat_id)]
-        chat_admins = await get_chat_members(self.chat_id)
+        chat_members = await get_chat_members(self.chat_id)
         keyboard = InlineKeyboardMarkup(
             inline_keyboard=[[InlineKeyboardButton(
                 text=get_full_name(x),
                 callback_data=self.serialize(x['id']))]
-             for x in chat_admins])
+             for x in chat_members])
 
         return keyboard
 
@@ -162,6 +156,12 @@ class LetThemKnowBeard(BeardChatHandler):
         # TODO answercallbackquery
 
         if self.recording_message:
+            await self.finish_let_them_know(msg)
+
+    @onerror
+    async def finish_let_them_know(self, msg):
+            query_id, from_id, query_data = glance(msg, flavor='callback_query')
+            data = self.deserialize(query_data)
             name_of_message_recipient = get_full_name(
                 await get_chat_member(self.chat_id, data))
             await self.bot.editMessageText(
@@ -176,6 +176,7 @@ class LetThemKnowBeard(BeardChatHandler):
                 self.message_to_record,
             )
             await self.sender.sendMessage("I'll let them know.")
+
             self.recording_message = False
             self.message_to_record = None
 
