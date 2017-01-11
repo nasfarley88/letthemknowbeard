@@ -80,8 +80,6 @@ async def get_chat_members(chat_id):
 async def insert_chat_member(chat_id, from_user):
     with dataset.connect(config.db_path) as db:
         table = db.get_table('chats', 'database_id')
-        # from_user['user_id'] = from_user['id']
-        # del from_user['id']
         return table.insert(dict(**from_user, chat_id=chat_id))
 
 
@@ -99,14 +97,15 @@ async def delete_message(entry):
 class LetThemKnowBeard(BeardChatHandler):
 
     __commands__ = [
-        ("letthemknow", 'let_them_know', "TODO"),
+        ("letthemknow", 'let_them_know',
+         "Schedule a message for someone to see later."),
         (lambda x: not(is_chat_member_recorded(x)), 'record_new_chat_member',
          None)
     ]
 
     _timeout = 300
 
-    __userhelp__ = "TODO"
+    __userhelp__ = "This beard schedules messages for others to see later."
 
     def __init__(self, *args, **kwargs):
         "docstring"
