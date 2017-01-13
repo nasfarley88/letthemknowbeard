@@ -99,7 +99,7 @@ class LetThemKnowBeard(BeardChatHandler):
     __commands__ = [
         ("letthemknow", 'let_them_know',
          "Schedule a message for someone to see later."),
-        (lambda x: not(is_chat_member_recorded(x)), 'record_new_chat_member',
+        (lambda c, m: not(is_chat_member_recorded(m)), 'record_new_chat_member',
          None)
     ]
 
