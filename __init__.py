@@ -33,18 +33,18 @@ async def check_for_messages(to_user_id, chat_id):
 
 
 async def insert_message(to_user_id, message):
-    """Find any messages currently waiting for a user."""
-    chat_id = message['chat']['id']
-    message_text = message['text']
-    from_user_name = get_full_name(message['from'])
+    """Inserts a message to be forwarded into the database."""
+    event = dict(
+        to_user_id=to_user_id,
+        chat_id=message['chat']['id'],
+        from_chat_id=message['chat']['id'],
+        message_id=message['message_id'],
+        from_user_name=get_full_name(message['from'])
+    )
 
     with dataset.connect(config.db_path) as db:
         table = db['messages']
-        return table.insert(
-            dict(to_user_id=to_user_id,
-                 from_user_name=from_user_name,
-                 chat_id=chat_id,
-                 message=message_text))
+        return table.insert(event)
 
 
 def is_chat_member_recorded(msg):
@@ -126,9 +126,12 @@ class LetThemKnowBeard(BeardChatHandler):
             msg['from']['id'], self.chat_id)
         for pregnant_msg in pregnant_msgs:
             await self.sender.sendMessage(
-                "By the way, {} wanted me to let you know:\n\n{}".format(
-                    pregnant_msg['from_user_name'],
-                    format_db_entry(pregnant_msg)))
+                "By the way, {} wanted me to let you know:".format(
+                    pregnant_msg['from_user_name']))
+            await self.sender.forwardMessage(
+                from_chat_id=pregnant_msg['from_chat_id'],
+                message_id=pregnant_msg['message_id']
+            )
             await delete_message(pregnant_msg)
 
         await super().on_chat_message(msg)
