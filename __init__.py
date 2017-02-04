@@ -171,7 +171,6 @@ class LetThemKnowBeard(BeardChatHandler):
             return x
 
     async def get_chat_members(self):
-    # with dataset.connect(config.db_path) as db:
         with self.chat_member_table as table:
             results_found = table.all()
             results_to_return = []
@@ -199,7 +198,7 @@ class LetThemKnowBeard(BeardChatHandler):
             return
 
         self.logger.debug("Callback data recieved: {}".format(data))
-        # TODO answercallbackquery
+        await self.bot.answerCallbackQuery(query_id)
 
         if self.recording_message:
             await self.finish_let_them_know(msg)
