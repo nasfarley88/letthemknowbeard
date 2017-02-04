@@ -1,7 +1,10 @@
 import logging
 
-import dataset
+import asyncio
 
+from time import sleep
+
+import telepot.aio
 from telepot import glance, message_identifier
 from telepot.namedtuple import InlineKeyboardMarkup, InlineKeyboardButton
 
@@ -9,6 +12,7 @@ from skybeard.beards import (BeardChatHandler,
                              ThatsNotMineException,
                              BeardDBTable)
 from skybeard.decorators import onerror
+from skybeard.predicates import regex_predicate
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +38,7 @@ class LetThemKnowBeard(BeardChatHandler):
     __commands__ = [
         ("letthemknow", 'let_them_know',
          "Schedule a message for someone to see later."),
+        (regex_predicate("_test"), "run_test", None),
     ]
 
     _timeout = 300
@@ -178,3 +183,22 @@ class LetThemKnowBeard(BeardChatHandler):
         with self.messages_table as table:
             return table.insert(event)
 
+    async def run_test(self, msg):
+        self.current_test = TestLetThemKnowBeard(self, msg)
+
+
+class TestLetThemKnowBeard(telepot.aio.helper.ChatHandler):
+    """Test class for LetThemKnowBeard"""
+    def __init__(self, beard, msg):
+        self.msg = msg
+        self.beard = beard
+        self.finished = False
+        asyncio.ensure_future(self.async_init())
+        while not self.finished:
+            sleep(0.5)
+
+    async def async_init(self):
+        await self.sender.sendMessage(
+            "Testing LetThemKnowBeard.let_them_know.")
+        await self.beard.let_them_know(self.msg)
+        self.finished = True
